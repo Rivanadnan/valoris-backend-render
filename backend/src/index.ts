@@ -77,42 +77,64 @@ app.use((req, _res, next) => {
 app.use("/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhookRouter);
 
 /**
- * ✅ CORS
- * Sätt FRONTEND_URL i Render Environment till din frontend-deploy (t.ex. Vercel URL).
+ * ✅ CORS (robust)
+ * - FRONTEND_URL kan råka ha trailing slash -> vi normaliserar
+ * - Origin matchar EXAKT, så vi normaliserar origin också
  */
+function normalizeOrigin(url?: string) {
+  if (!url) return "";
+  return url.trim().replace(/\/+$/, ""); // tar bort trailing slashes
+}
+
 const allowedOrigins = [
-  process.env.FRONTEND_URL, // prod
-  "http://localhost:5173",  // dev
+  normalizeOrigin(process.env.FRONTEND_URL), // prod
+  "http://localhost:5173", // dev
 ].filter(Boolean) as string[];
+
+function isAllowedOrigin(origin: string) {
+  const o = normalizeOrigin(origin);
+
+  // Exakt whitelist
+  if (allowedOrigins.includes(o)) return true;
+
+  // Tillåt Vercel preview-domäner (valfritt men hjälper i verkligheten)
+  if (o.endsWith(".vercel.app")) return true;
+
+  return false;
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Tillåt requests utan origin (t.ex. curl, server-to-server)
+      // Tillåt requests utan origin (curl/server-to-server)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (isAllowedOrigin(origin)) return callback(null, true);
 
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
+      // Istället för att krascha hårt: blocka snyggt
+      return callback(null, false);
     },
     credentials: true,
   })
 );
 
+/**
+ * Om CORS blockar (origin: false), kan Express annars svara konstigt.
+ * Vi fångar det med en tydlig response på preflight & vanliga requests.
+ */
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !isAllowedOrigin(origin)) {
+    return res.status(403).json({ ok: false, error: `CORS blocked for origin: ${origin}` });
+  }
+  next();
+});
+
 app.use(express.json());
 
-// Debug (ok i dev)
-if (process.env.NODE_ENV !== "production") {
-  console.log("✅ ENV loaded:", {
-    hasMongo: !!process.env.MONGO_URI,
-    hasJwt: !!process.env.JWT_SECRET,
-    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
-    hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-    appUrl: process.env.APP_URL,
-    frontendUrl: process.env.FRONTEND_URL,
-  });
-  console.log("✅ CORS allowed origins:", allowedOrigins);
-}
+// Logga även i production (hjälper när man deployar)
+console.log("✅ FRONTEND_URL (raw):", process.env.FRONTEND_URL);
+console.log("✅ CORS allowed origins:", allowedOrigins);
 
 // Health
 app.get("/health", (_req, res) => {
@@ -153,7 +175,7 @@ if (process.env.NODE_ENV !== "production") {
 /**
  * ✅ Render (och vanlig Node): måste lyssna på PORT
  */
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ API listening on port ${PORT}`);
