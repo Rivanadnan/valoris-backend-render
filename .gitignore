@@ -1,0 +1,10 @@
+# Node
+node_modules/
+backend/node_modules/
+
+# Environment variables
+.env
+backend/.env
+
+# OS / editor
+.DS_Store
