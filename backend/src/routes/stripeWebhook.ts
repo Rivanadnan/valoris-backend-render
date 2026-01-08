@@ -12,7 +12,7 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 if (!STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY missing");
 if (!STRIPE_WEBHOOK_SECRET) throw new Error("STRIPE_WEBHOOK_SECRET missing");
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-12-15.clover" });
+const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
 
 const ONBOARDING_TTL_SECONDS = 60 * 60 * 6; // 6h
 

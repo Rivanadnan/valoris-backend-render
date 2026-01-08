@@ -8,7 +8,7 @@ const router = Router();
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 if (!STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY missing");
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-12-15.clover" });
+const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
 
 const ONBOARDING_TTL_SECONDS = 60 * 60 * 6; // 6h
 const PRICE_SEK = 199;
