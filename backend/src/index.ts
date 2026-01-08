@@ -76,7 +76,29 @@ app.use((req, _res, next) => {
  */
 app.use("/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhookRouter);
 
-app.use(cors());
+/**
+ * ✅ CORS
+ * Sätt FRONTEND_URL i Render Environment till din frontend-deploy (t.ex. Vercel URL).
+ */
+const allowedOrigins = [
+  process.env.FRONTEND_URL, // prod
+  "http://localhost:5173",  // dev
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Tillåt requests utan origin (t.ex. curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 // Debug (ok i dev)
@@ -87,7 +109,9 @@ if (process.env.NODE_ENV !== "production") {
     hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
     hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
     appUrl: process.env.APP_URL,
+    frontendUrl: process.env.FRONTEND_URL,
   });
+  console.log("✅ CORS allowed origins:", allowedOrigins);
 }
 
 // Health
