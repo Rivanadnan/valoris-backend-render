@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 
-// ✅ I Vercel används Environment Variables (ingen .env-fil behövs där).
-// Detta gör lokal dev smidig utan att krascha i prod.
+// Lokal dev: läs .env
 dotenv.config();
 
 import express from "express";
@@ -22,8 +21,7 @@ import offersRouter from "./routes/offers";
 const app = express();
 
 /**
- * ✅ MongoDB connection cache (Vercel/serverless-friendly)
- * Så vi inte gör ny anslutning vid varje request.
+ * ✅ MongoDB connection cache (serverless-friendly, funkar även på Render)
  */
 declare global {
   // eslint-disable-next-line no-var
@@ -63,8 +61,8 @@ app.use(async (_req, res, next) => {
 });
 
 /**
- * ✅ Vercel routes: /api/auth/login → vi vill att Express ser /auth/login
- * Så vi strippar /api-prefixet om det finns.
+ * ✅ Om du fortfarande har frontend som anropar /api/... (tidigare Vercel)
+ * Så strippar vi /api prefix.
  */
 app.use((req, _res, next) => {
   if (req.url.startsWith("/api/")) req.url = req.url.slice(4); // tar bort "/api"
@@ -76,11 +74,7 @@ app.use((req, _res, next) => {
  * ⚠️ Stripe webhook MUST ligga före express.json()
  * POST /webhooks/stripe
  */
-app.use(
-  "/webhooks/stripe",
-  express.raw({ type: "application/json" }),
-  stripeWebhookRouter
-);
+app.use("/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhookRouter);
 
 app.use(cors());
 app.use(express.json());
@@ -133,7 +127,10 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 /**
- * ✅ Vercel: Exportera appen (ingen app.listen här).
+ * ✅ Render (och vanlig Node): måste lyssna på PORT
  */
-export default app;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ API listening on port ${PORT}`);
+});
